@@ -7,6 +7,7 @@ pipeline {
 
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
+        DOCKER_USERNAME = 'mehmoodhaq7'
     }
     
     stages {
@@ -62,7 +63,70 @@ pipeline {
             steps {
                 sh 'trivy fs --format table -o fs-report.html .'
             }
-        }   
+        }
+
+        stage('Build & Tag Backend Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-creds') {
+                        dir('api') {
+                            sh 'docker build -t $DOCKER_USERNAME/incident-log-backend:latest .'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Trivy Backend Image Scan') {
+            steps {
+                sh 'trivy image --format table -o backend-image-report.html $DOCKER_USERNAME/incident-log-backend:latest'
+            }
+        }
+
+        stage('Push Backend Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-creds') {
+                        sh 'docker push $DOCKER_USERNAME/incident-log-backend:latest'
+                    }
+                }
+            }
+        }
+
+        stage('Build & Tag Frontend Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-creds') {
+                        dir('client') {
+                            sh 'docker build -t $DOCKER_USERNAME/incident-log-frontend:latest .'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Trivy Frontend Image Scan') {
+            steps {
+                sh 'trivy image --format table -o frontend-image-report.html $DOCKER_USERNAME/incident-log-frontend:latest'
+            }
+        }
+
+        stage('Push Frontend Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-creds') {
+                        sh 'docker push $DOCKER_USERNAME/incident-log-frontend:latest'
+                    }
+                }
+            }
+        }
+
+        stage('Docker Compose Deploy') {
+            steps {
+                sh 'docker-compose down --remove-orphans || true'
+                sh 'docker-compose up -d'
+            }
+        }
     }
 
     post {
