@@ -123,7 +123,6 @@ pipeline {
 
         stage('Docker Compose Deploy') {
             steps {
-                sh 'docker-compose down --remove-orphans || true'
                 sh 'docker-compose up -d'
             }
         }
