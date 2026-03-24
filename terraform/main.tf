@@ -101,6 +101,7 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   addon_name                  = "aws-ebs-csi-driver"
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
+  depends_on = [aws_eks_node_group.incident_log]
 }
 
 resource "aws_eks_node_group" "incident_log" {
@@ -115,7 +116,7 @@ resource "aws_eks_node_group" "incident_log" {
     min_size     = 2
   }
 
-  instance_types = ["t2.medium"]
+  instance_types = ["c7i-flex.large"]
 
   remote_access {
     ec2_ssh_key               = var.ssh_key_name
