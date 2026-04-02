@@ -22,12 +22,9 @@ export default function Incidents() {
   const fetchIncidents = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(
-        `${process.env.REACT_APP_API}/api/incidents`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await axios.get(`/api/incidents`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setIncidents(res.data);
     } catch (err) {
       console.error(err);
@@ -38,7 +35,7 @@ export default function Incidents() {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
-      await axios.post(`${process.env.REACT_APP_API}/api/incidents`, form, {
+      await axios.post(`/api/incidents`, form, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setForm({ title: "", description: "", severity: "P2" });
@@ -53,7 +50,7 @@ export default function Incidents() {
     if (!window.confirm("Delete this incident?")) return;
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`${process.env.REACT_APP_API}/api/incidents/${id}`, {
+      await axios.delete(`/api/incidents/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchIncidents();
