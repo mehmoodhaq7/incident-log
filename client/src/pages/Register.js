@@ -11,7 +11,7 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${process.env.REACT_APP_API}/api/auth/register`, form);
+      await axios.post(`/api/auth/register`, form);
       setSuccess("Registered! Redirecting...");
       setTimeout(() => navigate("/login"), 1500);
     } catch (err) {

@@ -19,12 +19,9 @@ export default function IncidentDetail() {
   const fetchIncident = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(
-        `${process.env.REACT_APP_API}/api/incidents/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await axios.get(`/api/incidents/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setIncident(res.data);
       setForm(res.data);
     } catch (err) {
@@ -36,13 +33,9 @@ export default function IncidentDetail() {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
-      await axios.put(
-        `${process.env.REACT_APP_API}/api/incidents/${id}`,
-        form,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      await axios.put(`/api/incidents/${id}`, form, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setEditing(false);
       fetchIncident();
     } catch (err) {

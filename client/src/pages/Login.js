@@ -12,10 +12,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(
-        `${process.env.REACT_APP_API}/api/auth/login`,
-        form,
-      );
+      const res = await axios.post(`/api/auth/login`, form);
       login(res.data.token, res.data.user);
       navigate("/");
     } catch (err) {

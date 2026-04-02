@@ -20,12 +20,9 @@ export default function Dashboard() {
   const fetchIncidents = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(
-        `${process.env.REACT_APP_API}/api/incidents`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await axios.get(`/api/incidents`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setIncidents(res.data);
       setStats({
         total: res.data.length,
