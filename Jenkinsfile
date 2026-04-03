@@ -1,22 +1,18 @@
 pipeline {
     agent any
-    
     tools {
         nodejs 'NodeJS23'
     }
-
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         DOCKER_USERNAME = 'mehmoodhaq7'
     }
-    
     stages {
         stage('Git Checkout') {
             steps {
                 git branch: 'dev', url: 'https://github.com/mehmoodhaq7/incident-log.git'
             }
         }
-        
         stage('Frontend Compilation') {
             steps {
                 dir('client') {
@@ -24,7 +20,6 @@ pipeline {
                 }
             }
         }
-        
         stage('Backend Compilation') {
             steps {
                 dir('api') {
@@ -32,14 +27,12 @@ pipeline {
                 }
             }
         }
-        
         stage('GitLeaks Scan') {
             steps {
                 sh 'gitleaks detect --source ./client --exit-code 1'
                 sh 'gitleaks detect --source ./api --exit-code 1'
             }
         }
-        
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonar') {
@@ -50,7 +43,6 @@ pipeline {
                 }
             }
         }
-
         stage('Quality Gate Check') {
             steps {
                 timeout(time: 1, unit: 'HOURS') {
@@ -58,13 +50,11 @@ pipeline {
                 }
             }
         }
-
         stage('Trivy FS Scan') {
             steps {
                 sh 'trivy fs --format table -o fs-report.html .'
             }
         }
-
         stage('Build & Tag Backend Image') {
             steps {
                 script {
@@ -76,13 +66,11 @@ pipeline {
                 }
             }
         }
-
         stage('Trivy Backend Image Scan') {
             steps {
                 sh 'trivy image --format table -o backend-image-report.html $DOCKER_USERNAME/incident-log-backend:latest'
             }
         }
-
         stage('Push Backend Image') {
             steps {
                 script {
@@ -92,7 +80,6 @@ pipeline {
                 }
             }
         }
-
         stage('Build & Tag Frontend Image') {
             steps {
                 script {
@@ -104,13 +91,11 @@ pipeline {
                 }
             }
         }
-
         stage('Trivy Frontend Image Scan') {
             steps {
                 sh 'trivy image --format table -o frontend-image-report.html $DOCKER_USERNAME/incident-log-frontend:latest'
             }
         }
-
         stage('Push Frontend Image') {
             steps {
                 script {
@@ -120,20 +105,51 @@ pipeline {
                 }
             }
         }
-
         stage('Docker Compose Deploy') {
             steps {
                 sh 'docker-compose up -d'
             }
         }
+        stage('Deploy to EKS Dev') {
+            steps {
+                withKubeCredentials(kubectlCredentials: [[
+                    caCertificate: '',
+                    clusterName: 'incident-log-cluster',
+                    contextName: '',
+                    credentialsId: 'k8s-token',
+                    namespace: 'dev',
+                    serverUrl: 'https://7728150E2E573A98BFE4F5E145516A4C.gr7.us-east-1.eks.amazonaws.com'
+                ]]) {
+                    sh 'kubectl apply -f k8s/manifests/sc.yaml'
+                    sh 'kubectl apply -f k8s/manifests/mysql.yaml -n dev'
+                    sh 'kubectl apply -f k8s/manifests/backend.yaml -n dev'
+                    sh 'kubectl apply -f k8s/manifests/frontend.yaml -n dev'
+                    sh 'sleep 60'
+                }
+            }
+        }
+        stage('Verify EKS Deployment') {
+            steps {
+                withKubeCredentials(kubectlCredentials: [[
+                    caCertificate: '',
+                    clusterName: 'incident-log-cluster',
+                    contextName: '',
+                    credentialsId: 'k8s-token',
+                    namespace: 'dev',
+                    serverUrl: 'https://7728150E2E573A98BFE4F5E145516A4C.gr7.us-east-1.eks.amazonaws.com'
+                ]]) {
+                    sh 'kubectl get pods -n dev'
+                    sh 'kubectl get svc -n dev'
+                }
+            }
+        }
     }
-
     post {
         success {
-            echo '✅ CI Pipeline Successful!'
+            echo '✅ Pipeline Successful!'
         }
         failure {
-            echo '❌ CI Pipeline Failed!'
+            echo '❌ Pipeline Failed!'
         }
     }
 }
