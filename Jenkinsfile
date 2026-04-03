@@ -105,11 +105,7 @@ pipeline {
                 }
             }
         }
-        stage('Docker Compose Deploy') {
-            steps {
-                sh 'docker-compose up -d'
-            }
-        }
+
         stage('Deploy to EKS Dev') {
             steps {
                 withKubeCredentials(kubectlCredentials: [[
