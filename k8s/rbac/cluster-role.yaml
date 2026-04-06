@@ -3,15 +3,16 @@ kind: ClusterRole
 metadata:
   name: jenkins-cluster-role
 rules:
-  - apiGroups: [""]
-    resources:
-      - persistentvolumes
-    verbs: ["get", "list", "watch", "create", "update", "delete"]
-  - apiGroups: ["storage.k8s.io"]
-    resources:
-      - storageclasses
-    verbs: ["get", "list", "watch", "create", "update", "delete"]
-  - apiGroups: ["cert-manager.io"]
-    resources:
-      - clusterissuers
-    verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: [""]
+  resources:
+  - persistentvolumes
+  - namespaces
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: ["storage.k8s.io"]
+  resources:
+  - storageclasses
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: ["cert-manager.io"]
+  resources:
+  - clusterissuers
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
