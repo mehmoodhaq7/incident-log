@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: backend-secret
-  namespace: dev
+  namespace: prod
 stringData:
   DB_PASSWORD: Admin@123
   JWT_SECRET: incidentlog-super-secret-key
@@ -12,7 +12,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: backend-config
-  namespace: dev
+  namespace: prod
 data:
   DB_HOST: mysql
   DB_USER: root
@@ -24,9 +24,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: dev
+  namespace: prod
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: backend
@@ -77,11 +77,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend
-  namespace: dev
+  namespace: prod
 spec:
   selector:
     app: backend
   ports:
     - port: 5000
       targetPort: 5000
-  type: LoadBalancer
+  type: ClusterIP
