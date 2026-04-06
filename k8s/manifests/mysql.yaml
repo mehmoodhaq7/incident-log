@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: mysql-secret
-  namespace: dev
+  namespace: prod
 stringData:
   MYSQL_ROOT_PASSWORD: Admin@123
 
@@ -11,7 +11,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mysql-config
-  namespace: dev
+  namespace: prod
 data:
   MYSQL_DATABASE: incident_log
 
@@ -20,7 +20,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mysql-init-config
-  namespace: dev
+  namespace: prod
 data:
   init.sql: |
     CREATE DATABASE IF NOT EXISTS incident_log;
@@ -50,40 +50,26 @@ data:
 
 ---
 apiVersion: v1
-kind: PersistentVolume
+kind: Service
 metadata:
-  name: mysql-pv
+  name: mysql
+  namespace: prod
 spec:
-  capacity:
-    storage: 5Gi
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: ebs-sc
-  persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /data/mysql
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mysql-pvc
-  namespace: dev
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: ebs-sc
-  resources:
-    requests:
-      storage: 5Gi
+  selector:
+    app: mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+  clusterIP: None
 
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mysql
-  namespace: dev
+  namespace: prod
 spec:
+  serviceName: mysql
   replicas: 1
   selector:
     matchLabels:
@@ -115,23 +101,15 @@ spec:
             - name: mysql-init
               mountPath: /docker-entrypoint-initdb.d
       volumes:
-        - name: mysql-storage
-          persistentVolumeClaim:
-            claimName: mysql-pvc
         - name: mysql-init
           configMap:
             name: mysql-init-config
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mysql
-  namespace: dev
-spec:
-  selector:
-    app: mysql
-  ports:
-    - port: 3306
-      targetPort: 3306
-  type: ClusterIP
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: ebs-sc
+        resources:
+          requests:
+            storage: 5Gi
