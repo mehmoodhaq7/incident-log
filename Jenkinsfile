@@ -1,18 +1,24 @@
 pipeline {
     agent any
+
     tools {
         nodejs 'NodeJS23'
     }
+
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         DOCKER_USERNAME = 'mehmoodhaq7'
+        EKS_ENDPOINT = 'https://46FB31094B98B312F6E15B76DFD2CD7E.yl4.us-east-1.eks.amazonaws.com'
     }
+
     stages {
+
         stage('Git Checkout') {
             steps {
-                git branch: 'dev', url: 'https://github.com/mehmoodhaq7/incident-log.git'
+                git branch: 'main', url: 'https://github.com/mehmoodhaq7/incident-log.git'
             }
         }
+
         stage('Frontend Compilation') {
             steps {
                 dir('client') {
@@ -20,6 +26,7 @@ pipeline {
                 }
             }
         }
+
         stage('Backend Compilation') {
             steps {
                 dir('api') {
@@ -27,12 +34,14 @@ pipeline {
                 }
             }
         }
+
         stage('GitLeaks Scan') {
             steps {
                 sh 'gitleaks detect --source ./client --exit-code 1'
                 sh 'gitleaks detect --source ./api --exit-code 1'
             }
         }
+
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonar') {
@@ -43,6 +52,7 @@ pipeline {
                 }
             }
         }
+
         stage('Quality Gate Check') {
             steps {
                 timeout(time: 1, unit: 'HOURS') {
@@ -50,11 +60,13 @@ pipeline {
                 }
             }
         }
+
         stage('Trivy FS Scan') {
             steps {
                 sh 'trivy fs --format table -o fs-report.html .'
             }
         }
+
         stage('Build & Tag Backend Image') {
             steps {
                 script {
@@ -66,11 +78,13 @@ pipeline {
                 }
             }
         }
+
         stage('Trivy Backend Image Scan') {
             steps {
                 sh 'trivy image --format table -o backend-image-report.html $DOCKER_USERNAME/incident-log-backend:latest'
             }
         }
+
         stage('Push Backend Image') {
             steps {
                 script {
@@ -80,6 +94,7 @@ pipeline {
                 }
             }
         }
+
         stage('Build & Tag Frontend Image') {
             steps {
                 script {
@@ -91,11 +106,13 @@ pipeline {
                 }
             }
         }
+
         stage('Trivy Frontend Image Scan') {
             steps {
                 sh 'trivy image --format table -o frontend-image-report.html $DOCKER_USERNAME/incident-log-frontend:latest'
             }
         }
+
         stage('Push Frontend Image') {
             steps {
                 script {
@@ -106,43 +123,60 @@ pipeline {
             }
         }
 
-        stage('Deploy to EKS Dev') {
+        // ── CONTINUOUS DELIVERY — Manual Approval ──
+        stage('Approval for Production') {
             steps {
-                withKubeCredentials(kubectlCredentials: [[
-                    caCertificate: '',
-                    clusterName: 'incident-log-cluster',
-                    contextName: '',
-                    credentialsId: 'k8s-token',
-                    namespace: 'dev',
-                    serverUrl: 'https://7728150E2E573A98BFE4F5E145516A4C.gr7.us-east-1.eks.amazonaws.com'
-                ]]) {
-                    sh 'kubectl apply -f k8s/manifests/sc.yaml'
-                    sh 'kubectl apply -f k8s/manifests/mysql.yaml -n dev'
-                    sh 'kubectl apply -f k8s/manifests/backend.yaml -n dev'
-                    sh 'kubectl apply -f k8s/manifests/frontend.yaml -n dev'
-                    sh 'sleep 60'
+                timeout(time: 1, unit: 'HOURS') {
+                    input message: 'Deploy to Production?',
+                          ok: 'Deploy',
+                          submitter: 'admin'
                 }
             }
         }
-        stage('Verify EKS Deployment') {
+
+        stage('Deploy to EKS Prod') {
             steps {
                 withKubeCredentials(kubectlCredentials: [[
                     caCertificate: '',
                     clusterName: 'incident-log-cluster',
                     contextName: '',
-                    credentialsId: 'k8s-token',
-                    namespace: 'dev',
-                    serverUrl: 'https://7728150E2E573A98BFE4F5E145516A4C.gr7.us-east-1.eks.amazonaws.com'
+                    credentialsId: 'k8s-prod-token',
+                    namespace: 'prod',
+                    serverUrl: "${EKS_ENDPOINT}"
                 ]]) {
-                    sh 'kubectl get pods -n dev'
-                    sh 'kubectl get svc -n dev'
+                    sh 'kubectl apply -f k8s/manifests/namespace.yaml'
+                    sh 'kubectl apply -f k8s/manifests/sc.yaml'
+                    sh 'sleep 10'
+                    sh 'kubectl apply -f k8s/manifests/mysql.yaml'
+                    sh 'kubectl apply -f k8s/manifests/backend.yaml'
+                    sh 'kubectl apply -f k8s/manifests/frontend.yaml'
+                    sh 'kubectl apply -f k8s/manifests/ingress.yaml'
+                    sh 'sleep 30'
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                withKubeCredentials(kubectlCredentials: [[
+                    caCertificate: '',
+                    clusterName: 'incident-log-cluster',
+                    contextName: '',
+                    credentialsId: 'k8s-prod-token',
+                    namespace: 'prod',
+                    serverUrl: "${EKS_ENDPOINT}"
+                ]]) {
+                    sh 'kubectl get pods -n prod'
+                    sh 'kubectl get svc -n prod'
+                    sh 'kubectl get ingress -n prod'
                 }
             }
         }
     }
+
     post {
         success {
-            echo '✅ Pipeline Successful!'
+            echo '✅ CI/CD Pipeline Successful — App deployed to Production!'
         }
         failure {
             echo '❌ Pipeline Failed!'
