@@ -151,6 +151,7 @@ pipeline {
                     sh 'kubectl apply -f k8s/manifests/backend.yaml'
                     sh 'kubectl apply -f k8s/manifests/frontend.yaml'
                     sh 'kubectl apply -f k8s/manifests/ingress.yaml'
+                    sh 'kubectl apply -f k8s/manifests/clusterIssuer.yaml
                     sh 'sleep 30'
                 }
             }
