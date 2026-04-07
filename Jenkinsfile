@@ -45,10 +45,12 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonar') {
-                    sh '''$SCANNER_HOME/bin/sonar-scanner \
+                    sh '''
+                    $SCANNER_HOME/bin/sonar-scanner \
                         -Dsonar.projectName=incident-log \
                         -Dsonar.projectKey=incident-log \
-                        -Dsonar.sources=.'''
+                        -Dsonar.sources=.
+                    '''
                 }
             }
         }
@@ -123,7 +125,7 @@ pipeline {
             }
         }
 
-        // ── CONTINUOUS DELIVERY — Manual Approval ──
+        // Continuous Delivery Approval
         stage('Approval for Production') {
             steps {
                 timeout(time: 1, unit: 'HOURS') {
@@ -144,6 +146,7 @@ pipeline {
                     namespace: 'prod',
                     serverUrl: "${EKS_ENDPOINT}"
                 ]]) {
+
                     sh 'kubectl apply -f k8s/manifests/namespace.yaml'
                     sh 'kubectl apply -f k8s/manifests/sc.yaml'
                     sh 'sleep 10'
@@ -151,7 +154,7 @@ pipeline {
                     sh 'kubectl apply -f k8s/manifests/backend.yaml'
                     sh 'kubectl apply -f k8s/manifests/frontend.yaml'
                     sh 'kubectl apply -f k8s/manifests/ingress.yaml'
-                    sh 'kubectl apply -f k8s/manifests/clusterIssuer.yaml
+                    sh 'kubectl apply -f k8s/manifests/clusterIssuer.yaml'
                     sh 'sleep 30'
                 }
             }
@@ -167,6 +170,7 @@ pipeline {
                     namespace: 'prod',
                     serverUrl: "${EKS_ENDPOINT}"
                 ]]) {
+
                     sh 'kubectl get pods -n prod'
                     sh 'kubectl get svc -n prod'
                     sh 'kubectl get ingress -n prod'
@@ -176,11 +180,67 @@ pipeline {
     }
 
     post {
+
         success {
-            echo '✅ CI/CD Pipeline Successful — App deployed to Production!'
+            withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_WEBHOOK')]) {
+                sh '''
+                curl -X POST -H 'Content-type: application/json' \
+                --data '{
+                    "attachments": [{
+                        "color": "#36a64f",
+                        "blocks": [{
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": "*✅ Build Successful!*\\n*Project:* Incident Log\\n*Job:* '"${JOB_NAME}"'\\n*Build:* #'"${BUILD_NUMBER}"'"
+                            }
+                        },
+                        {
+                            "type": "actions",
+                            "elements": [{
+                                "type": "button",
+                                "text": {"type": "plain_text", "text": "View Build"},
+                                "url": "'"${BUILD_URL}"'"
+                            }]
+                        }]
+                    }]
+                }' \
+                $SLACK_WEBHOOK
+                '''
+            }
+
+            echo 'CI/CD Pipeline Successful'
         }
+
         failure {
-            echo '❌ Pipeline Failed!'
+            withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_WEBHOOK')]) {
+                sh '''
+                curl -X POST -H 'Content-type: application/json' \
+                --data '{
+                    "attachments": [{
+                        "color": "#ff0000",
+                        "blocks": [{
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": "*❌ Build Failed!*\\n*Project:* Incident Log\\n*Job:* '"${JOB_NAME}"'\\n*Build:* #'"${BUILD_NUMBER}"'"
+                            }
+                        },
+                        {
+                            "type": "actions",
+                            "elements": [{
+                                "type": "button",
+                                "text": {"type": "plain_text", "text": "View Logs"},
+                                "url": "'"${BUILD_URL}"'console"
+                            }]
+                        }]
+                    }]
+                }' \
+                $SLACK_WEBHOOK
+                '''
+            }
+
+            echo 'Pipeline Failed'
         }
     }
 }
