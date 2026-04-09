@@ -4,15 +4,6 @@ alertmanager:
 prometheus:
   service:
     type: LoadBalancer
-  prometheusSpec:
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: ebs-sc
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 5Gi
 
 grafana:
   enabled: true
@@ -21,9 +12,7 @@ grafana:
   adminUser: admin
   adminPassword: admin123
   persistence:
-    enabled: true
-    storageClassName: ebs-sc
-    size: 2Gi
+    enabled: false
 
 nodeExporter:
   enabled: true
