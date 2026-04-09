@@ -8,7 +8,7 @@ pipeline {
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         DOCKER_USERNAME = 'mehmoodhaq7'
-        EKS_ENDPOINT = 'https://46FB31094B98B312F6E15B76DFD2CD7E.yl4.us-east-1.eks.amazonaws.com'
+        EKS_ENDPOINT = 'https://E59BEA4D111AB32B4225B2FAC81B927B.gr7.us-east-1.eks.amazonaws.com'
     }
 
     stages {
