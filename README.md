@@ -4,7 +4,7 @@
 
 ## Application
 
-![alt text](image.png)
+![alt text](assets/image.png)
 
 Role-based incident management — log, track, resolve production incidents with P1–P4 severity.
 
@@ -26,7 +26,7 @@ Role-based incident management — log, track, resolve production incidents with
 
 ## CI/CD Pipeline
 
-![alt text](image-1.png)
+![alt text](assets/image-1.png)
 
 `Push → Compile → Gitleaks → SonarQube → Trivy → Docker Build → Push → Approve → Deploy EKS → Slack`
 
@@ -45,8 +45,8 @@ Role-based incident management — log, track, resolve production incidents with
 
 ## Monitoring
 
-![alt text](image-2.png)
-![alt text](image-3.png)
+![alt text](assets/image-2.png)
+![alt text](assets/image-3.png)
 
 Prometheus + Grafana on EKS via Helm — pods, nodes, network metrics.
 
@@ -54,7 +54,7 @@ Prometheus + Grafana on EKS via Helm — pods, nodes, network metrics.
 
 ## Notifications
 
-![alt text](image-6.png)
+![alt text](assets/image-6.png)
 
 Jenkins sends success/failure notifications to Slack with build details.
 
@@ -62,7 +62,7 @@ Jenkins sends success/failure notifications to Slack with build details.
 
 ## Kubernetes
 
-![alt text](image-5.png)
+![alt text](assets/image-5.png)
 
 ```bash
 prod namespace
