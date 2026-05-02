@@ -8,6 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "healthy", timestamp: new Date() });
+});
+
 // Routes
 const authRoutes = require("./routes/auth");
 const incidentRoutes = require("./routes/incidents");
