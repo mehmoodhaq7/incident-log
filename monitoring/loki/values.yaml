@@ -1,0 +1,9 @@
+loki:
+  persistence:
+    enabled: true
+    storageClassName: ebs-sc
+    size: 5Gi
+promtail:
+  enabled: true
+grafana:
+  enabled: false
