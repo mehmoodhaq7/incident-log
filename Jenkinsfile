@@ -115,6 +115,20 @@ pipeline {
             }
         }
 
+        stage('NPM Audit') {
+            steps {
+                dir('api') { sh 'npm audit --audit-level=high || true' }
+                dir('client') { sh 'npm audit --audit-level=high || true' }
+            }
+        }
+
+        stage('Checkov IaC Scan') {
+            steps {
+                sh 'sudo checkov -d terraform/ --output cli --soft-fail || true'
+                sh 'sudo checkov -d k8s/ --output cli --soft-fail || true'
+            }
+        }
+
         stage('Push Frontend Image') {
             steps {
                 script {
