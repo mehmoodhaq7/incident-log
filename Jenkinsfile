@@ -1,24 +1,17 @@
 pipeline {
     agent any
-
-    tools {
-        nodejs 'NodeJS23'
-    }
-
+    tools { nodejs 'NodeJS23' }
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         DOCKER_USERNAME = 'mehmoodhaq7'
-        EKS_ENDPOINT = 'https://E59BEA4D111AB32B4225B2FAC81B927B.gr7.us-east-1.eks.amazonaws.com'
     }
-
     stages {
-
         stage('Git Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/mehmoodhaq7/incident-log.git'
+                git branch: 'main',
+                url: 'https://github.com/mehmoodhaq7/incident-log.git'
             }
         }
-
         stage('Frontend Compilation') {
             steps {
                 dir('client') {
@@ -26,7 +19,6 @@ pipeline {
                 }
             }
         }
-
         stage('Backend Compilation') {
             steps {
                 dir('api') {
@@ -34,113 +26,101 @@ pipeline {
                 }
             }
         }
-
         stage('GitLeaks Scan') {
             steps {
                 sh 'gitleaks detect --source ./client --exit-code 1'
                 sh 'gitleaks detect --source ./api --exit-code 1'
             }
         }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('sonar') {
-                    sh '''
-                    $SCANNER_HOME/bin/sonar-scanner \
-                        -Dsonar.projectName=incident-log \
-                        -Dsonar.projectKey=incident-log \
-                        -Dsonar.sources=.
-                    '''
-                }
-            }
-        }
-
-        stage('Quality Gate Check') {
-            steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token'
-                }
-            }
-        }
-
-        stage('Trivy FS Scan') {
-            steps {
-                sh 'trivy fs --format table -o fs-report.html .'
-            }
-        }
-        
         stage('NPM Audit') {
             steps {
                 dir('api') { sh 'npm audit --audit-level=high || true' }
                 dir('client') { sh 'npm audit --audit-level=high || true' }
             }
         }
-
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh '''$SCANNER_HOME/bin/sonar-scanner \
+                        -Dsonar.projectName=incident-log \
+                        -Dsonar.projectKey=incident-log \
+                        -Dsonar.sources=.'''
+                }
+            }
+        }
+        stage('Quality Gate Check') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: false,
+                    credentialsId: 'sonar-token'
+                }
+            }
+        }
+        stage('Trivy FS Scan') {
+            steps {
+                sh 'trivy fs --format table -o fs-report.html .'
+            }
+        }
         stage('Checkov IaC Scan') {
             steps {
                 sh 'sudo checkov -d terraform/ --output cli --soft-fail || true'
                 sh 'sudo checkov -d k8s/ --output cli --soft-fail || true'
             }
         }
-
         stage('Build & Tag Backend Image') {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker-creds') {
                         dir('api') {
-                            sh 'docker build -t $DOCKER_USERNAME/incident-log-backend:latest .'
+                            sh 'docker build -t $DOCKER_USERNAME/incident-log-backend:$BUILD_NUMBER .'
+                            sh 'docker tag $DOCKER_USERNAME/incident-log-backend:$BUILD_NUMBER $DOCKER_USERNAME/incident-log-backend:latest'
                         }
                     }
                 }
             }
         }
-
         stage('Trivy Backend Image Scan') {
             steps {
-                sh 'trivy image --format table -o backend-image-report.html $DOCKER_USERNAME/incident-log-backend:latest'
+                sh 'trivy image --format table -o backend-image-report.html $DOCKER_USERNAME/incident-log-backend:$BUILD_NUMBER'
             }
         }
-
         stage('Push Backend Image') {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker-creds') {
+                        sh 'docker push $DOCKER_USERNAME/incident-log-backend:$BUILD_NUMBER'
                         sh 'docker push $DOCKER_USERNAME/incident-log-backend:latest'
                     }
                 }
             }
         }
-
         stage('Build & Tag Frontend Image') {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker-creds') {
                         dir('client') {
-                            sh 'docker build -t $DOCKER_USERNAME/incident-log-frontend:latest .'
+                            sh 'docker build -t $DOCKER_USERNAME/incident-log-frontend:$BUILD_NUMBER .'
+                            sh 'docker tag $DOCKER_USERNAME/incident-log-frontend:$BUILD_NUMBER $DOCKER_USERNAME/incident-log-frontend:latest'
                         }
                     }
                 }
             }
         }
-
         stage('Trivy Frontend Image Scan') {
             steps {
-                sh 'trivy image --format table -o frontend-image-report.html $DOCKER_USERNAME/incident-log-frontend:latest'
+                sh 'trivy image --format table -o frontend-image-report.html $DOCKER_USERNAME/incident-log-frontend:$BUILD_NUMBER'
             }
         }
-
-
         stage('Push Frontend Image') {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker-creds') {
+                        sh 'docker push $DOCKER_USERNAME/incident-log-frontend:$BUILD_NUMBER'
                         sh 'docker push $DOCKER_USERNAME/incident-log-frontend:latest'
                     }
                 }
             }
         }
-
-        // Continuous Delivery Approval
         stage('Approval for Production') {
             steps {
                 timeout(time: 1, unit: 'HOURS') {
@@ -150,52 +130,26 @@ pipeline {
                 }
             }
         }
-
-        stage('Deploy to EKS Prod') {
+        stage('Update CD Repo') {
             steps {
-                withKubeCredentials(kubectlCredentials: [[
-                    caCertificate: '',
-                    clusterName: 'incident-log-cluster',
-                    contextName: '',
-                    credentialsId: 'k8s-prod-token',
-                    namespace: 'prod',
-                    serverUrl: "${EKS_ENDPOINT}"
-                ]]) {
-
-                    sh 'kubectl apply -f k8s/manifests/namespace.yaml'
-                    sh 'kubectl apply -f k8s/manifests/sc.yaml'
-                    sh 'sleep 10'
-                    sh 'kubectl apply -f k8s/manifests/mysql.yaml'
-                    sh 'kubectl apply -f k8s/manifests/backend.yaml'
-                    sh 'kubectl apply -f k8s/manifests/frontend.yaml'
-                    sh 'kubectl apply -f k8s/manifests/ingress.yaml'
-                    sh 'kubectl apply -f k8s/manifests/clusterIssuer.yaml'
-                    sh 'sleep 30'
-                }
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                withKubeCredentials(kubectlCredentials: [[
-                    caCertificate: '',
-                    clusterName: 'incident-log-cluster',
-                    contextName: '',
-                    credentialsId: 'k8s-prod-token',
-                    namespace: 'prod',
-                    serverUrl: "${EKS_ENDPOINT}"
-                ]]) {
-
-                    sh 'kubectl get pods -n prod'
-                    sh 'kubectl get svc -n prod'
-                    sh 'kubectl get ingress -n prod'
+                withCredentials([string(credentialsId: 'github-token', variable: 'GH_TOKEN')]) {
+                    sh '''
+                        rm -rf incident-log-cd
+                        git clone https://mehmoodhaq7:${GH_TOKEN}@github.com/mehmoodhaq7/incident-log-cd.git
+                        cd incident-log-cd
+                        sed -i "s|mehmoodhaq7/incident-log-backend:.*|mehmoodhaq7/incident-log-backend:${BUILD_NUMBER}|g" k8s-prod/backend.yaml
+                        sed -i "s|mehmoodhaq7/incident-log-frontend:.*|mehmoodhaq7/incident-log-frontend:${BUILD_NUMBER}|g" k8s-prod/frontend.yaml
+                        git config user.email "jenkins@incident-log.com"
+                        git config user.name "Jenkins"
+                        git add .
+                        git commit -m "ci: update image tags to build-${BUILD_NUMBER}" || echo "No changes to commit"
+                        git push origin main
+                    '''
                 }
             }
         }
     }
-
     post {
-
         success {
             withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_WEBHOOK')]) {
                 sh '''
@@ -223,10 +177,7 @@ pipeline {
                 $SLACK_WEBHOOK
                 '''
             }
-
-            echo 'CI/CD Pipeline Successful'
         }
-
         failure {
             withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_WEBHOOK')]) {
                 sh '''
@@ -254,8 +205,6 @@ pipeline {
                 $SLACK_WEBHOOK
                 '''
             }
-
-            echo 'Pipeline Failed'
         }
     }
 }
