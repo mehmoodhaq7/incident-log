@@ -60,7 +60,7 @@ Jenkins sends success/failure notifications to Slack with build details.
 
 ---
 
-## Kubernetes
+## Kubernetes.
 
 ![alt text](assets/image-5.png)
 
